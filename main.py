@@ -1,8 +1,13 @@
-from sentinel.storage import load_json, save_json
+from sentinel.ui import start_menu
 
-reports = load_json("reports.json", [])
-print("Before:", reports)
 
-reports.append({"user": "Fahad", "type": "test"})
-save_json("reports.json", reports)
-print("After:", reports)
+def main():
+    """Start the program."""
+    try:
+        start_menu()
+    except KeyboardInterrupt:
+        print("\nGoodbye!")
+
+
+if __name__ == "__main__":
+    main()
