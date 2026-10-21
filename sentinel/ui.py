@@ -1,5 +1,6 @@
 from rich.console import Console
 from rich.panel import Panel
+from sentinel.auth import admin_login
 
 console = Console()
 
@@ -98,7 +99,8 @@ def start_menu():
             console.print(f"[green]👋 Welcome, {name}![/green]")
             user_menu(name)
         elif choice == "2":
-            admin_menu()
+            if admin_login():
+                admin_menu()
         else:
             console.print("[cyan]👋 Stay safe! Goodbye.[/cyan]")
             break
