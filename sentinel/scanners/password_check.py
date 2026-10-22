@@ -17,10 +17,10 @@ class PasswordScanner(Scanner):
         suffix = sha1[5:]
 
         response = self.get(API_URL + prefix)
-        count = self.find_count(response.text, suffix)
-        return self.build_result(count)
+        count = self._find_count(response.text, suffix)
+        return self._build_result(count)
 
-    def find_count(self, response_text, suffix):
+    def _find_count(self, response_text, suffix):        
         """Search the API response for our suffix. Return how many times it leaked."""
         for line in response_text.splitlines():
             line_suffix, count = line.split(":")
@@ -28,7 +28,7 @@ class PasswordScanner(Scanner):
                 return int(count)
         return 0
 
-    def build_result(self, count):
+    def _build_result(self, count):        
         """Turn the leak count into a result the UI can display."""
         if count == 0:
             return {

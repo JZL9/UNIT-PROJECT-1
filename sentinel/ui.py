@@ -5,6 +5,7 @@ from rich.panel import Panel
 from sentinel.auth import admin_login
 from sentinel.scanners.base import ScannerError
 from sentinel.scanners.password_check import PasswordScanner
+from sentinel.scanners.url_check import URLScanner
 
 console = Console()
 
@@ -36,6 +37,7 @@ STATUS_STYLES = {
     "warning": ("yellow", "🟠 WARNING"),
     "danger": ("red", "🔴 DANGER"),
 }
+
 
 def show_banner():
     """Display the program title."""
@@ -78,7 +80,10 @@ def ask_name():
 def show_result(result):
     """Display any scan result inside a colored box, then the advice."""
     color, label = STATUS_STYLES[result["status"]]
-    body = f"{label}\n{result['summary']}\nRisk: {result['risk']}/100"
+    lines = [label, result["summary"]]
+    lines.extend(result.get("details", []))
+    lines.append(f"Risk: {result['risk']}/100")
+    body = "\n".join(lines)
     console.print(Panel(body, title="Result", border_style=color))
     console.print("[bold]💡 Advice:[/bold]")
     for tip in result["advice"]:
@@ -104,7 +109,36 @@ def check_password():
 
     show_result(result)
 
-    
+
+def ask_url():
+    """Keep asking for a valid URL. Return None if the user types 'back'."""
+    while True:
+        url = input("Enter URL (or 'back'): ").strip()
+        if url.lower() == "back":
+            return None
+        if URLScanner.is_valid_url(url):
+            return url
+        console.print("[red]❌ That doesn't look like a valid URL. Example: example.com[/red]")
+
+
+def investigate_url():
+    """Ask for a URL and check its reputation."""
+    console.print("\n[bold]🔍 INVESTIGATE URL[/bold]")
+    url = ask_url()
+    if url is None:
+        return
+
+    try:
+        scanner = URLScanner()
+        with console.status("Checking reputation (URLhaus)..."):
+            result = scanner.scan(url)
+    except ScannerError as error:
+        console.print(f"[red]❌ {error}[/red]")
+        return
+
+    show_result(result)
+
+
 def user_menu(name):
     """Main loop for a normal user."""
     while True:
@@ -114,6 +148,8 @@ def user_menu(name):
             return
         if choice == "1":
             check_password()
+        elif choice == "2":
+            investigate_url()
         else:
             console.print("[yellow]🚧 Coming soon...[/yellow]")
 
