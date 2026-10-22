@@ -1,6 +1,10 @@
+from pwinput import pwinput
 from rich.console import Console
 from rich.panel import Panel
+
 from sentinel.auth import admin_login
+from sentinel.scanners.base import ScannerError
+from sentinel.scanners.password_check import PasswordScanner
 
 console = Console()
 
@@ -27,6 +31,11 @@ ADMIN_OPTIONS = [
     ("0", "Logout"),
 ]
 
+STATUS_STYLES = {
+    "safe": ("green", "🟢 SAFE"),
+    "warning": ("yellow", "🟠 WARNING"),
+    "danger": ("red", "🔴 DANGER"),
+}
 
 def show_banner():
     """Display the program title."""
@@ -66,6 +75,36 @@ def ask_name():
         console.print("[red]❌ Please enter a valid name (letters only, at least 2).[/red]")
 
 
+def show_result(result):
+    """Display any scan result inside a colored box, then the advice."""
+    color, label = STATUS_STYLES[result["status"]]
+    body = f"{label}\n{result['summary']}\nRisk: {result['risk']}/100"
+    console.print(Panel(body, title="Result", border_style=color))
+    console.print("[bold]💡 Advice:[/bold]")
+    for tip in result["advice"]:
+        console.print(f"  • {tip}")
+
+
+def check_password():
+    """Ask for a password and check if it was leaked."""
+    console.print("\n[bold]🔑 PASSWORD LEAK CHECK[/bold]")
+    console.print("[dim]Your password is never sent or stored. 🔒[/dim]")
+
+    password = pwinput("Enter password: ", mask="*")
+    if not password:
+        console.print("[red]❌ Password cannot be empty.[/red]")
+        return
+
+    try:
+        with console.status("Checking known breaches..."):
+            result = PasswordScanner().scan(password)
+    except ScannerError as error:
+        console.print(f"[red]❌ {error}[/red]")
+        return
+
+    show_result(result)
+
+    
 def user_menu(name):
     """Main loop for a normal user."""
     while True:
@@ -73,7 +112,10 @@ def user_menu(name):
         choice = ask_choice("Choose: ", get_keys(USER_OPTIONS))
         if choice == "0":
             return
-        console.print("[yellow]🚧 Coming soon...[/yellow]")
+        if choice == "1":
+            check_password()
+        else:
+            console.print("[yellow]🚧 Coming soon...[/yellow]")
 
 
 def admin_menu():

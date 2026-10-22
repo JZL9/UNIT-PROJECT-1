@@ -71,8 +71,7 @@ def admin_login():
 
         remaining = attempt - 1
         if remaining > 0:
-            console.print(f"[red]❌ Wrong username or password. ({remaining} attempts left)[/red]")
-
-    console.print("[red]🔒 Too many attempts. Returning to main menu.[/red]")
+            word = "attempt" if remaining == 1 else "attempts"
+            console.print(f"[red]❌ Wrong username or password. ({remaining} {word} left)[/red]")
     return False
 
