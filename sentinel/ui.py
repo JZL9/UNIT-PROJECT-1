@@ -3,6 +3,8 @@ from rich.console import Console
 from rich.panel import Panel
 
 from sentinel.auth import admin_login
+from sentinel.models import Report
+from sentinel.report_store import save_report
 from sentinel.scanners.base import ScannerError
 from sentinel.scanners.password_check import PasswordScanner
 from sentinel.scanners.url_check import URLScanner
@@ -90,7 +92,7 @@ def show_result(result):
         console.print(f"  • {tip}")
 
 
-def check_password():
+def check_password(name):
     """Ask for a password and check if it was leaked."""
     console.print("\n[bold]🔑 PASSWORD LEAK CHECK[/bold]")
     console.print("[dim]Your password is never sent or stored. 🔒[/dim]")
@@ -108,7 +110,7 @@ def check_password():
         return
 
     show_result(result)
-
+    save_report(Report.from_result(name, "password", "********", result))
 
 def ask_url():
     """Keep asking for a valid URL. Return None if the user types 'back'."""
@@ -121,7 +123,7 @@ def ask_url():
         console.print("[red]❌ That doesn't look like a valid URL. Example: example.com[/red]")
 
 
-def investigate_url():
+def investigate_url(name):
     """Ask for a URL and check its reputation."""
     console.print("\n[bold]🔍 INVESTIGATE URL[/bold]")
     url = ask_url()
@@ -137,6 +139,8 @@ def investigate_url():
         return
 
     show_result(result)
+    save_report(Report.from_result(name, "url", URLScanner.normalize(url), result))
+    console.print("[dim]📥 Report saved for the security team.[/dim]")
 
 
 def user_menu(name):
@@ -147,9 +151,9 @@ def user_menu(name):
         if choice == "0":
             return
         if choice == "1":
-            check_password()
+            check_password(name)
         elif choice == "2":
-            investigate_url()
+            investigate_url(name)
         else:
             console.print("[yellow]🚧 Coming soon...[/yellow]")
 
