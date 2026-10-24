@@ -170,7 +170,7 @@ def show_reports_table(reports, title, show_user=False):
     if show_user:
         table.add_column("User")
     table.add_column("Type")
-    table.add_column("Target")
+    table.add_column("Target", overflow="fold")
     table.add_column("Risk", justify="right")
 
     for report in reports:
@@ -182,6 +182,7 @@ def show_reports_table(reports, title, show_user=False):
         table.add_row(*row)
 
     console.print(table)
+    
 
 
 def show_my_scans(name):
@@ -211,6 +212,36 @@ def filter_reports(reports):
     return reports
 
 
+def ask_report_id(reports):
+    """Ask for an ID from the shown reports. Return that Report, or None to go back."""
+    ids = list(map(lambda report: str(report.report_id), reports))
+    while True:
+        answer = input("Report ID for details (Enter to go back): ").strip()
+        if not answer:
+            return None
+        if answer in ids:
+            return reports[ids.index(answer)]
+        console.print(f"[red]❌ No report with ID {answer} in this list.[/red]")
+
+
+def show_report_details(report):
+    """Show every detail of one report inside a colored box."""
+    color, label = STATUS_STYLES[report.status]
+    lines = [
+        f"{label}   Risk: {report.risk}/100",
+        f"User:   {report.user}",
+        f"Type:   {report.scan_type}",
+        f"Target: {report.target}",
+        f"Date:   {report.created_at}",
+        "",
+        report.summary,
+    ]
+    lines.extend(report.details)
+    if report.indicators.get("ip"):
+        lines.append(f"🧩 Indicator IP: {report.indicators['ip']}")
+    console.print(Panel("\n".join(lines), title=f"Report #{report.report_id}", border_style=color))
+
+
 def show_all_reports():
     """Admin view: list all users' reports with an optional filter."""
     reports = load_reports()
@@ -226,6 +257,9 @@ def show_all_reports():
         return
 
     show_reports_table(filtered, f"📥 REPORTS ({len(filtered)})", show_user=True)
+    report = ask_report_id(filtered)
+    if report:
+        show_report_details(report)
 
 
 def user_menu(name):
