@@ -7,7 +7,7 @@ class Report:
     DANGER_LEVEL = 70
 
     def __init__(self, user, scan_type, target, status, risk, summary,
-                 details=None, report_id=None, created_at=None):
+                details=None, indicators=None, report_id=None, created_at=None):
         self.report_id = report_id
         self.user = user
         self.scan_type = scan_type
@@ -16,6 +16,7 @@ class Report:
         self.risk = risk
         self.summary = summary
         self.details = details or []
+        self.indicators = indicators or {}
         self.created_at = created_at or datetime.now().strftime("%Y-%m-%d %H:%M")
 
     @classmethod
@@ -29,6 +30,7 @@ class Report:
             risk=result["risk"],
             summary=result["summary"],
             details=result.get("details", []),
+            indicators=result.get("indicators", {}),
         )
 
     @classmethod
@@ -47,6 +49,7 @@ class Report:
             "risk": self.risk,
             "summary": self.summary,
             "details": self.details,
+            "indicators": self.indicators,
             "created_at": self.created_at,
         }
 

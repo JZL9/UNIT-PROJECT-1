@@ -31,6 +31,11 @@ class URLScanner(Scanner):
         return url
 
     @staticmethod
+    def get_host(url):
+        """Return only the domain part, e.g. 'bad.com' from 'http://bad.com/file.exe'."""
+        return urlparse(URLScanner.normalize(url)).hostname
+
+    @staticmethod
     def is_valid_url(url):
         """Basic check: no spaces, and the host must contain a dot."""
         if not url or " " in url.strip():

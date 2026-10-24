@@ -6,9 +6,11 @@ from rich.table import Table
 from sentinel.auth import admin_login
 from sentinel.models import Report
 from sentinel.report_store import load_reports, save_report
+from sentinel.risk import combine_results
 from sentinel.scanners.base import ScannerError
 from sentinel.scanners.password_check import PasswordScanner
 from sentinel.scanners.url_check import URLScanner
+from sentinel.scanners.website_check import WebsiteScanner
 
 console = Console()
 
@@ -125,16 +127,24 @@ def ask_url():
 
 
 def investigate_url(name):
-    """Ask for a URL and check its reputation."""
+    """Check the URL's reputation first, then inspect the website if it's not known as malicious."""
     console.print("\n[bold]🔍 INVESTIGATE URL[/bold]")
     url = ask_url()
     if url is None:
         return
 
     try:
-        scanner = URLScanner()
         with console.status("Checking reputation (URLhaus)..."):
-            result = scanner.scan(url)
+            reputation = URLScanner().scan(url)
+
+        if reputation["status"] == "danger":
+            result = reputation
+            console.print("[dim]🛡️ Known malicious: live checks skipped for your safety.[/dim]")
+        else:
+            console.print("[dim]⚠️ Live checks contact the website directly (headers only).[/dim]")
+            with console.status("Inspecting SSL, DNS and uptime..."):
+                website = WebsiteScanner().scan(URLScanner.get_host(url))
+            result = combine_results(reputation, website)
     except ScannerError as error:
         console.print(f"[red]❌ {error}[/red]")
         return
