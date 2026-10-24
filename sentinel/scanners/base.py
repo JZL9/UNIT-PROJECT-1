@@ -40,3 +40,12 @@ class Scanner:
     def post(self, url, headers=None, data=None, json_body=None):
         """Shortcut for a POST request."""
         return self.request("POST", url, headers=headers, data=data, json_body=json_body)
+
+    @staticmethod
+    def status_from_risk(risk):
+        """Turn a risk number into safe / warning / danger."""
+        if risk >= 70:
+            return "danger"
+        if risk >= 40:
+            return "warning"
+        return "safe"
