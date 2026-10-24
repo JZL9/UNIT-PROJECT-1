@@ -1,10 +1,11 @@
 from pwinput import pwinput
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
 
 from sentinel.auth import admin_login
 from sentinel.models import Report
-from sentinel.report_store import save_report
+from sentinel.report_store import load_reports, save_report
 from sentinel.scanners.base import ScannerError
 from sentinel.scanners.password_check import PasswordScanner
 from sentinel.scanners.url_check import URLScanner
@@ -143,6 +144,33 @@ def investigate_url(name):
     console.print("[dim]📥 Report saved for the security team.[/dim]")
 
 
+def show_my_scans(name):
+    """Show a table of all scans made by this user."""
+    my_reports = list(filter(lambda report: report.user == name, load_reports()))
+    if not my_reports:
+        console.print("[yellow]You haven't scanned anything yet. Try option 1 or 2![/yellow]")
+        return
+
+    table = Table(title=f"📜 YOUR SCANS — {name}")
+    table.add_column("#", justify="right")
+    table.add_column("Date")
+    table.add_column("Type")
+    table.add_column("Target")
+    table.add_column("Risk", justify="right")
+
+    for report in my_reports:
+        color, _ = STATUS_STYLES[report.status]
+        table.add_row(
+            str(report.report_id),
+            report.created_at,
+            report.scan_type,
+            report.target,
+            f"[{color}]{report.risk}[/{color}]",
+        )
+
+    console.print(table)
+
+
 def user_menu(name):
     """Main loop for a normal user."""
     while True:
@@ -154,6 +182,8 @@ def user_menu(name):
             check_password(name)
         elif choice == "2":
             investigate_url(name)
+        elif choice == "4":
+            show_my_scans(name)
         else:
             console.print("[yellow]🚧 Coming soon...[/yellow]")
 
