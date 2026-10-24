@@ -23,8 +23,7 @@ START_OPTIONS = [
 USER_OPTIONS = [
     ("1", "🔑 Check Password Leak"),
     ("2", "🔍 Investigate URL"),
-    ("3", "📦 Scan requirements.txt"),
-    ("4", "📜 My Scans"),
+    ("3", "📜 My Scans"),
     ("0", "Back"),
 ]
 
@@ -192,7 +191,7 @@ def user_menu(name):
             check_password(name)
         elif choice == "2":
             investigate_url(name)
-        elif choice == "4":
+        elif choice == "3":
             show_my_scans(name)
         else:
             console.print("[yellow]🚧 Coming soon...[/yellow]")
