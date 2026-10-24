@@ -36,6 +36,14 @@ ADMIN_OPTIONS = [
     ("0", "Logout"),
 ]
 
+REPORT_FILTERS = [
+    ("1", "All reports"),
+    ("2", "High risk only"),
+    ("3", "By user"),
+    ("4", "By type"),
+    ("0", "Back"),
+]
+
 STATUS_STYLES = {
     "safe": ("green", "🟢 SAFE"),
     "warning": ("yellow", "🟠 WARNING"),
@@ -153,31 +161,71 @@ def investigate_url(name):
     console.print("[dim]📥 Report saved for the security team.[/dim]")
 
 
+
+def show_reports_table(reports, title, show_user=False):
+    """Print a table of reports. The admin view also shows the user column."""
+    table = Table(title=title)
+    table.add_column("#", justify="right")
+    table.add_column("Date", no_wrap=True)
+    if show_user:
+        table.add_column("User")
+    table.add_column("Type")
+    table.add_column("Target")
+    table.add_column("Risk", justify="right")
+
+    for report in reports:
+        color, _ = STATUS_STYLES[report.status]
+        row = [str(report.report_id), report.created_at]
+        if show_user:
+            row.append(report.user)
+        row.extend([report.scan_type, report.target, f"[{color}]{report.risk}[/{color}]"])
+        table.add_row(*row)
+
+    console.print(table)
+
+
 def show_my_scans(name):
     """Show a table of all scans made by this user."""
     my_reports = list(filter(lambda report: report.user == name, load_reports()))
     if not my_reports:
         console.print("[yellow]You haven't scanned anything yet. Try option 1 or 2![/yellow]")
         return
+    show_reports_table(my_reports, f"📜 YOUR SCANS — {name}")
 
-    table = Table(title=f"📜 YOUR SCANS — {name}")
-    table.add_column("#", justify="right")
-    table.add_column("Date")
-    table.add_column("Type")
-    table.add_column("Target")
-    table.add_column("Risk", justify="right")
 
-    for report in my_reports:
-        color, _ = STATUS_STYLES[report.status]
-        table.add_row(
-            str(report.report_id),
-            report.created_at,
-            report.scan_type,
-            report.target,
-            f"[{color}]{report.risk}[/{color}]",
-        )
+def filter_reports(reports):
+    """Ask the admin how to filter. Return the filtered list, or None to go back."""
+    show_menu("FILTER REPORTS", REPORT_FILTERS)
+    choice = ask_choice("Choose: ", get_keys(REPORT_FILTERS))
 
-    console.print(table)
+    if choice == "0":
+        return None
+    if choice == "2":
+        return list(filter(lambda report: report.is_dangerous(), reports))
+    if choice == "3":
+        user = input("User name: ").strip().title()
+        return list(filter(lambda report: report.user == user, reports))
+    if choice == "4":
+        scan_type = ask_choice("Type (password / url): ", ["password", "url"])
+        return list(filter(lambda report: report.scan_type == scan_type, reports))
+    return reports
+
+
+def show_all_reports():
+    """Admin view: list all users' reports with an optional filter."""
+    reports = load_reports()
+    if not reports:
+        console.print("[yellow]No reports yet.[/yellow]")
+        return
+
+    filtered = filter_reports(reports)
+    if filtered is None:
+        return
+    if not filtered:
+        console.print("[yellow]No reports match this filter.[/yellow]")
+        return
+
+    show_reports_table(filtered, f"📥 REPORTS ({len(filtered)})", show_user=True)
 
 
 def user_menu(name):
@@ -205,7 +253,10 @@ def admin_menu():
         if choice == "0":
             console.print("[cyan]🔒 Logged out.[/cyan]")
             return
-        console.print("[yellow]🚧 Coming soon...[/yellow]")
+        if choice == "1":
+            show_all_reports()
+        else:
+            console.print("[yellow]🚧 Coming soon...[/yellow]")
 
 
 def start_menu():
