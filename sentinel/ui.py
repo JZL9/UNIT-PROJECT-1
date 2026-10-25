@@ -4,7 +4,8 @@ from rich.panel import Panel
 from rich.table import Table
 
 from sentinel.auth import admin_login
-from sentinel.models import Report
+from sentinel.case_store import load_cases, next_case_id, save_cases
+from sentinel.models import Case, Report
 from sentinel.report_store import load_reports, save_report
 from sentinel.risk import combine_results
 from sentinel.scanners.base import ScannerError
@@ -43,6 +44,21 @@ REPORT_FILTERS = [
     ("4", "By type"),
     ("0", "Back"),
 ]
+
+CASE_OPTIONS = [
+    ("1", "➕ New case"),
+    ("2", "📋 List cases"),
+    ("3", "🔎 Search cases"),
+    ("4", "✏️  Edit case"),
+    ("5", "🗑️  Delete case"),
+    ("0", "Back"),
+]
+
+CASE_STATUS_COLORS = {
+    "open": "red",
+    "investigating": "yellow",
+    "closed": "green",
+}
 
 STATUS_STYLES = {
     "safe": ("green", "🟢 SAFE"),
@@ -262,6 +278,70 @@ def show_all_reports():
         show_report_details(report)
 
 
+def ask_text(prompt, min_length=3):
+    """Keep asking until the text is long enough."""
+    while True:
+        text = input(prompt).strip()
+        if len(text) >= min_length:
+            return text
+        console.print(f"[red]❌ Please write at least {min_length} characters.[/red]")
+
+
+def show_cases_table(cases, reports):
+    """Print a table of cases with their status and average risk."""
+    table = Table(title=f"📁 CASES ({len(cases)})")
+    table.add_column("#", justify="right")
+    table.add_column("Title", overflow="fold")
+    table.add_column("Status")
+    table.add_column("Reports", justify="right")
+    table.add_column("Avg Risk", justify="right")
+
+    for case in cases:
+        color = CASE_STATUS_COLORS[case.status]
+        table.add_row(
+            str(case.case_id),
+            case.title,
+            f"[{color}]{case.status}[/{color}]",
+            str(len(case.report_ids)),
+            str(case.average_risk(reports)),
+        )
+
+    console.print(table)
+
+
+def create_case(cases):
+    """Ask for a title and save a new case."""
+    title = ask_text("Case title: ")
+    case = Case(title=title, case_id=next_case_id(cases))
+    cases.append(case)
+    save_cases(cases)
+    console.print(f"[green]✅ Case #{case.case_id} \"{case.title}\" created.[/green]")
+
+
+def list_cases(cases):
+    """Show all cases, or a message if there are none."""
+    if not cases:
+        console.print("[yellow]No cases yet. Create one with option 1.[/yellow]")
+        return
+    show_cases_table(cases, load_reports())
+
+
+def cases_menu():
+    """Admin loop for managing cases."""
+    while True:
+        cases = load_cases()
+        show_menu("CASES", CASE_OPTIONS)
+        choice = ask_choice("Choose: ", get_keys(CASE_OPTIONS))
+        if choice == "0":
+            return
+        if choice == "1":
+            create_case(cases)
+        elif choice == "2":
+            list_cases(cases)
+        else:
+            console.print("[yellow]🚧 Coming soon...[/yellow]")
+
+
 def user_menu(name):
     """Main loop for a normal user."""
     while True:
@@ -289,6 +369,8 @@ def admin_menu():
             return
         if choice == "1":
             show_all_reports()
+        elif choice == "2":
+            cases_menu()
         else:
             console.print("[yellow]🚧 Coming soon...[/yellow]")
 
