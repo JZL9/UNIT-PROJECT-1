@@ -18,9 +18,7 @@ def build_stats(reports, cases):
     leaked = list(filter(lambda report: report.status == "danger", password_reports))
     tags = []
     for report in reports:
-        for line in report.details:
-            if line.startswith("Tags: ") and line != "Tags: none":
-                tags.extend(line[len("Tags: "):].split(", "))
+        tags.extend(report.tags())
 
     return {
         "total_reports": len(reports),

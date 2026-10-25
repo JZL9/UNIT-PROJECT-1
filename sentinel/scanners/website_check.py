@@ -114,7 +114,7 @@ class WebsiteScanner(Scanner):
                 "risk": 40,
                 "summary": "This domain does not exist (no DNS records).",
                 "advice": ["Check the spelling. Fake links often use misspelled domains."],
-                "indicators": {"ip": None, "ssl_issuer": None},
+                "indicators": {"ip": None, "host": host, "ssl_issuer": None},                
             }
 
         ssl_info = self._check_ssl(host)
@@ -138,8 +138,15 @@ class WebsiteScanner(Scanner):
             "summary": summaries[status],
             "details": findings,
             "advice": advice[status],
-            "indicators": {"ip": dns_info["ip"], "ssl_issuer": ssl_info.get("issuer")},
+            "indicators": {"ip": dns_info["ip"], "host": host, "ssl_issuer": ssl_info.get("issuer")},            
         }
+
+
+    def lookup_indicators(self, host):
+        """Passive lookup: get the IP through Google DNS without contacting the site itself."""
+        dns_info = self._check_dns(host)
+        return {"ip": dns_info["ip"], "host": host, "ssl_issuer": None}
+
 
     def _score(self, dns_info, ssl_info, uptime):
         """Add risk points for every red flag. Return (risk, findings)."""

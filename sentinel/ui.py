@@ -173,6 +173,9 @@ def investigate_url(name):
 
         if reputation["status"] == "danger":
             result = reputation
+        if reputation["status"] == "danger":
+            result = reputation
+            result["indicators"] = WebsiteScanner().lookup_indicators(URLScanner.get_host(url))
             console.print("[dim]🛡️ Known malicious: live checks skipped for your safety.[/dim]")
         else:
             console.print("[dim]⚠️ Live checks contact the website directly (headers only).[/dim]")

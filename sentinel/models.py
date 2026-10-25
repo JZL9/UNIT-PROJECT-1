@@ -24,7 +24,7 @@ class Report:
         self.indicators = indicators or {}
         self.created_at = created_at or now_text()
 
-        
+
     @classmethod
     def from_result(cls, user, scan_type, target, result):
         """Build a Report from a scanner's result dict."""
@@ -62,6 +62,14 @@ class Report:
     def is_dangerous(self):
         """True if the risk is high."""
         return self.risk >= self.DANGER_LEVEL
+
+
+    def tags(self):
+        """Threat tags found in the details, e.g. ['Mozi', 'elf']."""
+        for line in self.details:
+            if line.startswith("Tags: ") and line != "Tags: none":
+                return line[len("Tags: "):].split(", ")
+        return []
 
 
 class Case:
