@@ -5,6 +5,7 @@ from rich.table import Table
 
 from sentinel.auth import admin_login
 from sentinel.case_store import find_case, load_cases, next_case_id, save_cases
+from sentinel.dashboard import build_stats
 from sentinel.models import Case, Report
 from sentinel.report_store import load_reports, save_report
 from sentinel.risk import combine_results
@@ -75,6 +76,7 @@ STATUS_STYLES = {
     "danger": ("red", "🔴 DANGER"),
 }
 
+BAR_WIDTH = 20
 
 def show_banner():
     """Display the program title."""
@@ -455,6 +457,62 @@ def delete_case(cases):
     console.print(f"[green]🗑️ Case #{case.case_id} deleted. Its reports are kept.[/green]")
 
 
+def draw_bar(value, max_value, color):
+    """Return a colored bar like '██████' sized relative to the biggest value."""
+    length = round(value / max_value * BAR_WIDTH) if max_value else 0
+    return f"[{color}]{'█' * length}[/{color}]"
+
+
+def show_dashboard():
+    """Show the big picture: totals, charts, top reporters and latest reports."""
+    reports = load_reports()
+    if not reports:
+        console.print("[yellow]No reports yet. The dashboard needs some data first.[/yellow]")
+        return
+    stats = build_stats(reports, load_cases())
+
+    console.print("\n[bold cyan]═════════════ 📊 DASHBOARD ═════════════[/bold cyan]")
+    console.print(
+        f"👥 Users: [bold]{stats['users']}[/bold]   "
+        f"📥 Reports: [bold]{stats['total_reports']}[/bold]   "
+        f"🔴 Threats: [bold red]{stats['threats']}[/bold red]   "
+        f"📁 Open cases: [bold]{stats['open_cases']}[/bold]"
+    )
+
+    console.print("\n[bold]─── Reports by type ───[/bold]")
+    biggest = max(stats["by_type"].values())
+    for scan_type, count in stats["by_type"].items():
+        console.print(f"  {scan_type:<10} {draw_bar(count, biggest, 'cyan')} {count}")
+
+    console.print("\n[bold]─── Risk levels ───[/bold]")
+    biggest = max(stats["by_status"].values())
+    for status in ("danger", "warning", "safe"):
+        count = stats["by_status"].get(status, 0)
+        color, label = STATUS_STYLES[status]
+        console.print(f"  {label:<12} {draw_bar(count, biggest, color)} {count}")
+
+    console.print("\n[bold]─── Most active reporters ───[/bold]")
+    reporters = map(lambda pair: f"{pair[0]} ({pair[1]})", stats["top_reporters"])
+    console.print("  " + "   ".join(reporters))
+
+    if stats["top_tags"]:
+        console.print("\n[bold]─── Top threat tags ───[/bold]")
+        tags = map(lambda pair: f"{pair[0]} ({pair[1]})", stats["top_tags"])
+        console.print("  " + "   ".join(tags))
+
+    if stats["password_checks"]:
+        percent = round(stats["leaked_passwords"] / stats["password_checks"] * 100)
+        console.print("\n[bold]─── Leaked passwords ───[/bold]")
+        console.print(
+            f"  ⚠️ {stats['leaked_passwords']} of {stats['password_checks']} "
+            f"checked passwords were leaked ({percent}%)"
+        )
+
+    console.print()
+    show_reports_table(stats["latest"], "🕒 Latest reports", show_user=True)
+
+
+
 def cases_menu():
     """Admin loop for managing cases."""
     while True:
@@ -504,6 +562,8 @@ def admin_menu():
             show_all_reports()
         elif choice == "2":
             cases_menu()
+        elif choice == "4":
+            show_dashboard()
         else:
             console.print("[yellow]🚧 Coming soon...[/yellow]")
 
