@@ -417,6 +417,44 @@ def edit_case(cases):
         console.print("[green]✅ Case updated.[/green]")
 
 
+
+def case_matches(case, word):
+    """True if the word appears in the case title or in any of its notes."""
+    in_title = word in case.title.lower()
+    in_notes = any(map(lambda note: word in note.lower(), case.notes))
+    return in_title or in_notes
+
+
+def search_cases(cases):
+    """Show the cases whose title or notes contain a word."""
+    if not cases:
+        console.print("[yellow]No cases yet. Create one with option 1.[/yellow]")
+        return
+
+    word = ask_text("Search for: ", min_length=2).lower()
+    found = list(filter(lambda case: case_matches(case, word), cases))
+    if not found:
+        console.print(f"[yellow]No cases match \"{word}\".[/yellow]")
+        return
+    show_cases_table(found, load_reports())
+
+
+def delete_case(cases):
+    """Pick a case and delete it after the admin confirms."""
+    case = ask_case(cases)
+    if case is None:
+        return
+
+    confirm = input(f"Type the case ID ({case.case_id}) to confirm deletion: ").strip()
+    if confirm != str(case.case_id):
+        console.print("[yellow]Deletion cancelled.[/yellow]")
+        return
+
+    cases.remove(case)
+    save_cases(cases)
+    console.print(f"[green]🗑️ Case #{case.case_id} deleted. Its reports are kept.[/green]")
+
+
 def cases_menu():
     """Admin loop for managing cases."""
     while True:
@@ -429,10 +467,12 @@ def cases_menu():
             create_case(cases)
         elif choice == "2":
             list_cases(cases)
+        elif choice == "3":
+            search_cases(cases)
         elif choice == "4":
             edit_case(cases)
-        else:
-            console.print("[yellow]🚧 Coming soon...[/yellow]")
+        elif choice == "5":
+            delete_case(cases)
 
 
 def user_menu(name):
