@@ -4,7 +4,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from sentinel.auth import admin_login
-from sentinel.case_store import load_cases, next_case_id, save_cases
+from sentinel.case_store import find_case, load_cases, next_case_id, save_cases
 from sentinel.models import Case, Report
 from sentinel.report_store import load_reports, save_report
 from sentinel.risk import combine_results
@@ -228,11 +228,11 @@ def filter_reports(reports):
     return reports
 
 
-def ask_report_id(reports):
+def ask_report_id(reports, prompt="Report ID for details (Enter to go back): "):
     """Ask for an ID from the shown reports. Return that Report, or None to go back."""
     ids = list(map(lambda report: str(report.report_id), reports))
     while True:
-        answer = input("Report ID for details (Enter to go back): ").strip()
+        answer = input(prompt).strip()
         if not answer:
             return None
         if answer in ids:
@@ -326,6 +326,44 @@ def list_cases(cases):
     show_cases_table(cases, load_reports())
 
 
+def ask_case(cases):
+    """Show the cases and ask for an ID. Return the Case, or None to go back."""
+    if not cases:
+        console.print("[yellow]No cases yet. Create one with option 1.[/yellow]")
+        return None
+
+    show_cases_table(cases, load_reports())
+    while True:
+        answer = input("Case ID (Enter to go back): ").strip()
+        if not answer:
+            return None
+        if answer.isdigit():
+            case = find_case(cases, int(answer))
+            if case:
+                return case
+        console.print(f"[red]❌ No case with ID {answer}.[/red]")
+
+
+def show_case_details(case, reports):
+    """Show the case info, its notes, and its linked reports."""
+    color = CASE_STATUS_COLORS[case.status]
+    lines = [
+        f"Status:   [{color}]{case.status}[/{color}]",
+        f"Created:  {case.created_at}",
+        f"Avg risk: {case.average_risk(reports)}/100",
+        "",
+        "📝 Notes:",
+    ]
+    lines.extend(map(lambda note: f"  • {note}", case.notes or ["(no notes yet)"]))
+    console.print(Panel("\n".join(lines), title=f"Case #{case.case_id} — {case.title}", border_style=color))
+
+    linked = list(filter(lambda report: report.report_id in case.report_ids, reports))
+    if linked:
+        show_reports_table(linked, "🔗 Linked reports", show_user=True)
+    else:
+        console.print("[dim]No reports linked to this case yet.[/dim]")
+
+
 def cases_menu():
     """Admin loop for managing cases."""
     while True:
@@ -338,6 +376,10 @@ def cases_menu():
             create_case(cases)
         elif choice == "2":
             list_cases(cases)
+        elif choice == "4":
+            case = ask_case(cases)
+            if case:
+                show_case_details(case, load_reports())
         else:
             console.print("[yellow]🚧 Coming soon...[/yellow]")
 
