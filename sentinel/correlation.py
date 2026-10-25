@@ -102,3 +102,17 @@ def find_campaigns(reports):
         if len(group) >= 2:
             campaigns.append(build_campaign(group))
     return campaigns
+
+
+def is_handled(campaign, cases):
+    """True if one case already contains every report of this campaign."""
+    ids = list(map(lambda report: report.report_id, campaign["reports"]))
+    for case in cases:
+        if all(map(lambda report_id: report_id in case.report_ids, ids)):
+            return True
+    return False
+
+
+def open_campaigns(reports, cases):
+    """Campaigns that are not handled by any case yet."""
+    return list(filter(lambda campaign: not is_handled(campaign, cases), find_campaigns(reports)))

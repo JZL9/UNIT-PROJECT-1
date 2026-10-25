@@ -13,6 +13,9 @@ from sentinel.scanners.base import ScannerError
 from sentinel.scanners.password_check import PasswordScanner
 from sentinel.scanners.url_check import URLScanner
 from sentinel.scanners.website_check import WebsiteScanner
+from sentinel.correlation import find_campaigns
+from sentinel.correlation import open_campaigns
+
 
 console = Console()
 
@@ -67,6 +70,12 @@ EDIT_OPTIONS = [
     ("3", "Add note"),
     ("4", "Link a report"),
     ("5", "Unlink a report"),
+    ("0", "Back"),
+]
+
+ALERT_ACTIONS = [
+    ("1", "📁 Create a case from this alert"),
+    ("2", "➕ Add to an existing case"),
     ("0", "Back"),
 ]
 
@@ -171,8 +180,6 @@ def investigate_url(name):
         with console.status("Checking reputation (URLhaus)..."):
             reputation = URLScanner().scan(url)
 
-        if reputation["status"] == "danger":
-            result = reputation
         if reputation["status"] == "danger":
             result = reputation
             result["indicators"] = WebsiteScanner().lookup_indicators(URLScanner.get_host(url))
@@ -515,6 +522,59 @@ def show_dashboard():
     show_reports_table(stats["latest"], "🕒 Latest reports", show_user=True)
 
 
+def show_campaign(number, campaign):
+    """Show one campaign: its reports, the evidence and the confidence."""
+    reports = campaign["reports"]
+    lines = [f"{len(reports)} reports from {len(campaign['users'])} user(s) share the same source:", ""]
+    for report in reports:
+        lines.append(f"  #{report.report_id:<3} {report.user:<8} {report.target}")
+        lines.append("")
+    lines.append("Evidence:")
+    lines.extend(map(lambda reason: f"  ✔ {reason}", campaign["evidence"]))
+    lines.append("")
+    lines.append(f"Confidence: {campaign['confidence']}%")
+    console.print(Panel("\n".join(lines), title=f"🚨 CAMPAIGN #{number}", border_style="red"))
+
+
+def act_on_campaign(campaign):
+    """Turn a campaign into a new case, or add it to an existing one."""
+    show_menu("WHAT DO YOU WANT TO DO?", ALERT_ACTIONS)
+    choice = ask_choice("Choose: ", get_keys(ALERT_ACTIONS))
+    if choice == "0":
+        return
+
+    cases = load_cases()
+    if choice == "1":
+        case = Case(title=ask_text("Case title: "), case_id=next_case_id(cases))
+        cases.append(case)
+    else:
+        case = ask_case(cases)
+        if case is None:
+            return
+
+    for report in campaign["reports"]:
+        case.add_report(report.report_id)
+    case.add_note(f"Linked by correlation: {'; '.join(campaign['evidence'])}")
+    save_cases(cases)
+    console.print(f"[green]✅ {len(campaign['reports'])} reports linked to case #{case.case_id}.[/green]")
+
+
+def show_correlation_alerts():
+    """Find linked threats and let the admin act on one of them."""
+    campaigns = open_campaigns(load_reports(), load_cases())
+    if not campaigns:
+        console.print("[green]✅ No new linked threats. All campaigns are handled.[/green]")
+        return
+
+    console.print(f"\n[bold red]🚨 {len(campaigns)} campaign(s) detected[/bold red]")
+    for number, campaign in enumerate(campaigns, start=1):
+        show_campaign(number, campaign)
+
+    numbers = list(map(str, range(1, len(campaigns) + 1)))
+    answer = ask_choice("Campaign number to act on (0 to go back): ", numbers + ["0"])
+    if answer != "0":
+        act_on_campaign(campaigns[int(answer) - 1])
+
 
 def cases_menu():
     """Admin loop for managing cases."""
@@ -549,15 +609,19 @@ def user_menu(name):
             investigate_url(name)
         elif choice == "3":
             show_my_scans(name)
-        else:
-            console.print("[yellow]🚧 Coming soon...[/yellow]")
 
 
 def admin_menu():
     """Main loop for the admin."""
     while True:
+
+        alerts = len(open_campaigns(load_reports(), load_cases()))
+        if alerts:
+            console.print(f"\n[bold red]🚨 {alerts} correlation alert(s)! Check option 3.[/bold red]")
+
         show_menu("ADMIN PANEL", ADMIN_OPTIONS)
         choice = ask_choice("Choose: ", get_keys(ADMIN_OPTIONS))
+
         if choice == "0":
             console.print("[cyan]🔒 Logged out.[/cyan]")
             return
@@ -565,6 +629,8 @@ def admin_menu():
             show_all_reports()
         elif choice == "2":
             cases_menu()
+        elif choice == "3":
+            show_correlation_alerts()
         elif choice == "4":
             show_dashboard()
         else:
