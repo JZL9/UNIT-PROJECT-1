@@ -60,6 +60,15 @@ CASE_STATUS_COLORS = {
     "closed": "green",
 }
 
+EDIT_OPTIONS = [
+    ("1", "Change title"),
+    ("2", "Change status"),
+    ("3", "Add note"),
+    ("4", "Link a report"),
+    ("5", "Unlink a report"),
+    ("0", "Back"),
+]
+
 STATUS_STYLES = {
     "safe": ("green", "🟢 SAFE"),
     "warning": ("yellow", "🟠 WARNING"),
@@ -364,6 +373,50 @@ def show_case_details(case, reports):
         console.print("[dim]No reports linked to this case yet.[/dim]")
 
 
+
+def edit_case(cases):
+    """Pick a case, then change its title, status, notes or linked reports."""
+    case = ask_case(cases)
+    if case is None:
+        return
+
+    reports = load_reports()
+    while True:
+        show_case_details(case, reports)
+        show_menu(f"EDIT CASE #{case.case_id}", EDIT_OPTIONS)
+        choice = ask_choice("Choose: ", get_keys(EDIT_OPTIONS))
+
+        if choice == "0":
+            return
+        if choice == "1":
+            case.title = ask_text("New title: ")
+        elif choice == "2":
+            status = ask_choice(f"New status ({' / '.join(Case.STATUSES)}): ", list(Case.STATUSES))
+            case.set_status(status)
+        elif choice == "3":
+            case.add_note(ask_text("Note: "))
+        elif choice == "4":
+            show_reports_table(reports, "📥 ALL REPORTS", show_user=True)
+            report = ask_report_id(reports, "Report ID to link (Enter to cancel): ")
+            if report is None:
+                continue
+            if not case.add_report(report.report_id):
+                console.print("[yellow]This report is already linked.[/yellow]")
+                continue
+        elif choice == "5":
+            linked = list(filter(lambda r: r.report_id in case.report_ids, reports))
+            if not linked:
+                console.print("[yellow]No linked reports to remove.[/yellow]")
+                continue
+            report = ask_report_id(linked, "Report ID to unlink (Enter to cancel): ")
+            if report is None:
+                continue
+            case.remove_report(report.report_id)
+
+        save_cases(cases)
+        console.print("[green]✅ Case updated.[/green]")
+
+
 def cases_menu():
     """Admin loop for managing cases."""
     while True:
@@ -377,9 +430,7 @@ def cases_menu():
         elif choice == "2":
             list_cases(cases)
         elif choice == "4":
-            case = ask_case(cases)
-            if case:
-                show_case_details(case, load_reports())
+            edit_case(cases)
         else:
             console.print("[yellow]🚧 Coming soon...[/yellow]")
 
