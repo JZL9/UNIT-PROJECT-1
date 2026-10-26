@@ -2,7 +2,7 @@ from sentinel.auth import admin_login
 from sentinel.screens.admin import admin_menu
 from sentinel.screens.display import ask_choice, ask_name, console, get_keys, show_banner, show_menu
 from sentinel.screens.user import user_menu
-
+from sentinel.screens.display import THEME
 START_OPTIONS = [
     ("1", "👤 User   — scan links & passwords"),
     ("2", "🔐 Admin  — analyze reports & cases"),
@@ -24,5 +24,5 @@ def start_menu():
             if admin_login():
                 admin_menu()
         else:
-            console.print("[THEME]👋 Stay safe! Goodbye.[/THEME]")
+            console.print(f"[{THEME}]👋 Stay safe! Goodbye.[/{THEME}]")
             break

@@ -465,7 +465,7 @@ def admin_menu():
         choice = ask_choice("Choose: ", get_keys(ADMIN_OPTIONS))
 
         if choice == "0":
-            console.print("[{THEME}]🔒 Logged out.[/{THEME}]")
+            console.print(f"[{THEME}]🔒 Logged out.[/{THEME}]")
             return
         if choice == "1":
             show_all_reports()
