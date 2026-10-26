@@ -15,7 +15,7 @@ from sentinel.scanners.url_check import URLScanner
 from sentinel.scanners.website_check import WebsiteScanner
 from sentinel.correlation import find_campaigns
 from sentinel.correlation import open_campaigns
-
+from sentinel.exporter import export_case, export_summary
 
 console = Console()
 
@@ -76,6 +76,12 @@ EDIT_OPTIONS = [
 ALERT_ACTIONS = [
     ("1", "📁 Create a case from this alert"),
     ("2", "➕ Add to an existing case"),
+    ("0", "Back"),
+]
+
+EXPORT_OPTIONS = [
+    ("1", "📁 Export a case"),
+    ("2", "📊 Export full summary"),
     ("0", "Back"),
 ]
 
@@ -576,6 +582,28 @@ def show_correlation_alerts():
         act_on_campaign(campaigns[int(answer) - 1])
 
 
+def export_menu():
+    """Let the admin export a case report or a full summary as a text file."""
+    show_menu("EXPORT REPORT", EXPORT_OPTIONS)
+    choice = ask_choice("Choose: ", get_keys(EXPORT_OPTIONS))
+    if choice == "0":
+        return
+
+    reports = load_reports()
+    if choice == "1":
+        case = ask_case(load_cases())
+        if case is None:
+            return
+        path = export_case(case, reports)
+    else:
+        if not reports:
+            console.print("[yellow]No reports yet. Nothing to export.[/yellow]")
+            return
+        path = export_summary(build_stats(reports, load_cases()))
+
+    console.print(f"[green]✅ Report saved: {path}[/green]")
+
+
 def cases_menu():
     """Admin loop for managing cases."""
     while True:
@@ -633,8 +661,8 @@ def admin_menu():
             show_correlation_alerts()
         elif choice == "4":
             show_dashboard()
-        else:
-            console.print("[yellow]🚧 Coming soon...[/yellow]")
+        elif choice == "5":
+            export_menu()
 
 
 def start_menu():
